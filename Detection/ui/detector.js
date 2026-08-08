@@ -1,7 +1,9 @@
+const API_BASE_URL = window.VIDSHIELD_API_URL || '';
 const mode = document.body.dataset.detector;
 const config = mode === 'image'
-  ? { endpoint: '/api/analyze-image', noun: 'image', model: 'ConvNeXt Tiny', maximum: '25 MB' }
-  : { endpoint: '/api/analyze', noun: 'video', model: 'Video Swin Small', maximum: '500 MB' };
+  ? { endpoint: `${API_BASE_URL}/api/analyze-image`, noun: 'image', model: 'ConvNeXt Tiny', maximum: '25 MB' }
+  : { endpoint: `${API_BASE_URL}/api/analyze`, noun: 'video', model: 'Video Swin Small', maximum: '500 MB' };
+
 
 const fileInput = document.querySelector('#fileInput');
 const dropzone = document.querySelector('#dropzone');
