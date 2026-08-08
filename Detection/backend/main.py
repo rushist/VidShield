@@ -54,11 +54,12 @@ def load_huggingface_models():
         from huggingface_hub import hf_hub_download
         import torch
 
+        hf_token = os.environ.get("HF_TOKEN")
         logger.info(f"Checking for models in Hugging Face repository: {HF_REPO_ID}")
 
         # Download ConvNeXt Tiny if available
         try:
-            convnext_path = hf_hub_download(repo_id=HF_REPO_ID, filename=CONVNEXT_FILENAME)
+            convnext_path = hf_hub_download(repo_id=HF_REPO_ID, filename=CONVNEXT_FILENAME, token=hf_token)
             logger.info(f"Downloaded ConvNeXt model from HF: {convnext_path}")
             loaded = torch.load(convnext_path, map_location="cpu")
             if hasattr(loaded, "eval"):
@@ -71,7 +72,7 @@ def load_huggingface_models():
 
         # Download Video Swin Small if available
         try:
-            videoswin_path = hf_hub_download(repo_id=HF_REPO_ID, filename=VIDEOSWIN_FILENAME)
+            videoswin_path = hf_hub_download(repo_id=HF_REPO_ID, filename=VIDEOSWIN_FILENAME, token=hf_token)
             logger.info(f"Downloaded Video Swin model from HF: {videoswin_path}")
             loaded = torch.load(videoswin_path, map_location="cpu")
             if hasattr(loaded, "eval"):
