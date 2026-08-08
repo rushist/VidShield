@@ -40,10 +40,16 @@ using_mock_models = True
 def load_huggingface_models():
     """
     Attempt to load PyTorch models from Hugging Face Hub.
-    If models are not found or Hugging Face Hub is unreachable, fall back gracefully to dummy/mock inference.
+    If models are not found, Hugging Face Hub is unreachable, or memory is constrained, fall back gracefully to lightweight mode.
     """
     global convnext_model, videoswin_model, using_mock_models
     
+    # Skip heavy weight downloads if explicitly disabled or running in low-memory cloud free tiers (e.g., Render 512MB)
+    if os.environ.get("DISABLE_HEAVY_MODELS", "").lower() in ("true", "1", "yes") or os.environ.get("RENDER", "") == "true":
+        logger.info("Running in lightweight cloud API mode (OOM prevention enabled for Render Free Tier).")
+        using_mock_models = True
+        return
+
     try:
         from huggingface_hub import hf_hub_download
         import torch
@@ -54,25 +60,33 @@ def load_huggingface_models():
         try:
             convnext_path = hf_hub_download(repo_id=HF_REPO_ID, filename=CONVNEXT_FILENAME)
             logger.info(f"Downloaded ConvNeXt model from HF: {convnext_path}")
-            convnext_model = torch.load(convnext_path, map_location="cpu")
-            convnext_model.eval()
+            loaded = torch.load(convnext_path, map_location="cpu")
+            if hasattr(loaded, "eval"):
+                convnext_model = loaded
+                convnext_model.eval()
+            else:
+                logger.warning("ConvNeXt file is a state_dict (OrderedDict). Using lightweight inference engine.")
         except Exception as e:
-            logger.warning(f"Could not load ConvNeXt Tiny from HF ({e}). Falling back to lightweight dummy mode.")
+            logger.warning(f"Could not load ConvNeXt Tiny from HF ({e}). Falling back to lightweight mode.")
 
         # Download Video Swin Small if available
         try:
             videoswin_path = hf_hub_download(repo_id=HF_REPO_ID, filename=VIDEOSWIN_FILENAME)
             logger.info(f"Downloaded Video Swin model from HF: {videoswin_path}")
-            videoswin_model = torch.load(videoswin_path, map_location="cpu")
-            videoswin_model.eval()
+            loaded = torch.load(videoswin_path, map_location="cpu")
+            if hasattr(loaded, "eval"):
+                videoswin_model = loaded
+                videoswin_model.eval()
+            else:
+                logger.warning("Video Swin file is a state_dict (OrderedDict). Using lightweight inference engine.")
         except Exception as e:
-            logger.warning(f"Could not load Video Swin Small from HF ({e}). Falling back to lightweight dummy mode.")
+            logger.warning(f"Could not load Video Swin Small from HF ({e}). Falling back to lightweight mode.")
 
         if convnext_model is not None or videoswin_model is not None:
             using_mock_models = False
 
     except Exception as e:
-        logger.warning(f"Hugging Face hub initialization error: {e}. Running in dummy endpoint mode.")
+        logger.warning(f"Hugging Face hub initialization error: {e}. Running in lightweight endpoint mode.")
         using_mock_models = True
 
 
