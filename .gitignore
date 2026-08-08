@@ -1,0 +1,19 @@
+# Model weight files
+*.pt
+*.pth
+*.onnx
+*.bin
+*.h5
+*.safetensors
+
+# Python / Environment
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+
+# Tooling / Cache
+.codex-lfs-publish/
+.DS_Store
+Thumbs.db
