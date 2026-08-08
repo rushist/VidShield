@@ -1,8 +1,19 @@
-const API_BASE_URL = window.VIDSHIELD_API_URL || '';
+function getApiBaseUrl() {
+  if (window.VIDSHIELD_API_URL) return window.VIDSHIELD_API_URL;
+  const stored = localStorage.getItem('vidshield_api_url');
+  if (stored) return stored;
+  return 'http://127.0.0.1:8000';
+}
+
 const mode = document.body.dataset.detector;
+function getEndpoint() {
+  const baseUrl = getApiBaseUrl().replace(/\/$/, '');
+  const path = mode === 'image' ? '/api/analyze-image' : '/api/analyze';
+  return `${baseUrl}${path}`;
+}
 const config = mode === 'image'
-  ? { endpoint: `${API_BASE_URL}/api/analyze-image`, noun: 'image', model: 'ConvNeXt Tiny', maximum: '25 MB' }
-  : { endpoint: `${API_BASE_URL}/api/analyze`, noun: 'video', model: 'Video Swin Small', maximum: '500 MB' };
+  ? { noun: 'image', model: 'ConvNeXt Tiny', maximum: '25 MB' }
+  : { noun: 'video', model: 'Video Swin Small', maximum: '500 MB' };
 
 
 const fileInput = document.querySelector('#fileInput');
@@ -83,13 +94,23 @@ async function analyze(file) {
   progressTimer = setInterval(() => { progress = Math.min(progress + Math.max(1, Math.round((90 - progress) / 8)), 90); setProgress(progress); }, 260);
   try {
     const form = new FormData(); form.append('file', file);
-    const response = await fetch(config.endpoint, { method: 'POST', body: form });
+    const endpoint = getEndpoint();
+    const response = await fetch(endpoint, { method: 'POST', body: form });
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      throw new Error(`API server at ${endpoint} returned a non-JSON response (404/HTML). Make sure the FastAPI backend server is running.`);
+    }
     const data = await response.json();
-    if (!response.ok) throw new Error(data.detail || 'The local analysis API returned an unexpected response.');
+    if (!response.ok) throw new Error(data.detail || 'The analysis API returned an error.');
     clearInterval(progressTimer); setProgress(100);
     setTimeout(() => { processingState.classList.add('hidden'); showResult(file, data); }, 220);
   } catch (error) {
-    clearInterval(progressTimer); processingState.classList.add('hidden'); showError(error.message || 'Unable to reach the local analysis API.');
+    clearInterval(progressTimer); processingState.classList.add('hidden');
+    let msg = error.message;
+    if (error.name === 'TypeError' && msg.includes('fetch')) {
+      msg = `Unable to connect to the backend server at ${getEndpoint()}. Ensure the FastAPI server is running (uvicorn main:app --port 8000).`;
+    }
+    showError(msg);
   }
 }
 
